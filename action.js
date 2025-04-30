@@ -9,42 +9,39 @@ const { getState } = require("@saltcorn/data/db/state");
 const { eval_expression } = require("@saltcorn/data/models/expression");
 const proxmoxApi = require("proxmox-api").default;
 
+const status_actions = [
+  "reboot",
+  "reset",
+  "resume",
+  "shutdown",
+  "start",
+  "stop",
+  "suspend",
+];
+
 module.exports = (modcfg) => ({
   requireRow: true,
   configFields: async ({ table }) => {
     return [
       {
-        name: "method",
-        label: "Method",
+        name: "action",
+        label: "Action",
         type: "String",
         required: true,
         attributes: {
-          options: ["POST", "PUT", "DELETE"],
+          options: status_actions,
         },
-      },
-      {
-        name: "properties",
-        label: "Properties",
-        sublabel: "JavaScript object",
-        type: "String",
-        fieldview: "textarea",
       },
     ];
   },
 
-  run: async ({ table, row, configuration, req, user }) => {
-    const { method, properties } = configuration;
+  run: async ({ table, row, configuration: { action }, req, user }) => {
     const proxmox = proxmoxApi({
       host: modcfg.host,
       password: modcfg.password,
       username: modcfg.username,
     });
-    const props = eval_expression(
-      properties || "{}",
-      row || {},
-      user,
-      "proxmox_modify properties"
-    );
+
     //assume this is a qemu for now
     const nodes = await proxmox.nodes.$get();
     for (const node of nodes) {
@@ -55,7 +52,9 @@ module.exports = (modcfg) => ({
         for (const qemu of qemus) {
           if (qemu.vmid === row.vmid) {
             //const result = await theNode.qemu.$(qemu.vmid)["$" + method](props);
-            const result = await theNode.qemu.$(qemu.vmid).status.suspend.$post()
+            const result = await theNode.qemu
+              .$(qemu.vmid)
+              .status[action].$post();
             console.log(result);
 
             break;
