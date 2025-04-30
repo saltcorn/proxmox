@@ -52,6 +52,8 @@ const runQuery = async (cfg, where, opts) => {
         const qemus = await theNode.qemu.$get({ full: true });
         all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
       }
+      //console.log(all_qemus[0]);
+      
       return all_qemus;
     }
     default:
@@ -88,6 +90,7 @@ module.exports = (modcfg) => ({
             { name: "vmid", type: "Integer", label: "VMID", primary_key: true },
             { name: "node", type: "String", label: "Node" },
             { name: "name", type: "String", label: "Name" },
+            { name: "tags", type: "String", label: "Tags" },
             { name: "mem", type: "Integer", label: "Memory" },
             { name: "maxmem", type: "Integer", label: "Maximum Memory" },
             { name: "freemem", type: "Integer", label: "Free Memory" },
