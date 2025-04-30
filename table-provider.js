@@ -22,7 +22,7 @@ const configuration_workflow = (cfg) => (req) =>
                 name: "entity_type",
                 label: "Entity type",
                 required: true,
-                attributes: { options: ["Nodes"] },
+                attributes: { options: ["Node", "QEMU"] },
               },
             ],
           });
@@ -32,8 +32,6 @@ const configuration_workflow = (cfg) => (req) =>
   });
 
 const runQuery = async (cfg, where, opts) => {
-  console.log(proxmoxApi);
-
   const proxmox = proxmoxApi({
     host: cfg.host,
     password: cfg.password,
@@ -41,12 +39,23 @@ const runQuery = async (cfg, where, opts) => {
   });
   // list nodes
   switch (cfg.entity_type) {
-    case "Nodes":
+    case "Node": {
       const nodes = await proxmox.nodes.$get();
       return nodes;
-
+    }
+    case "QEMU": {
+      const all_qemus = [];
+      const nodes = await proxmox.nodes.$get();
+      for (const node of nodes) {
+        const theNode = proxmox.nodes.$(node.node);
+        // list Qemu VMS
+        const qemus = await theNode.qemu.$get({ full: true });
+        all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
+      }
+      return all_qemus;
+    }
     default:
-      break;
+      return [];
   }
 };
 
@@ -54,14 +63,18 @@ module.exports = (modcfg) => ({
   Proxmox: {
     configuration_workflow: configuration_workflow(modcfg),
     fields: (cfgTable) => {
-      switch (cfgTable.entity_type) {
-        case "Nodes":
+      switch (cfgTable?.entity_type) {
+        case "Node":
           return [
             { name: "id", type: "String", label: "ID", primary_key: true },
             { name: "status", type: "String", label: "Status" },
             { name: "node", type: "String", label: "Node" },
             { name: "level", type: "String", label: "Level" },
-            { name: "ssl_fingerprint", type: "String", label: "SSL fingerprint" },
+            {
+              name: "ssl_fingerprint",
+              type: "String",
+              label: "SSL fingerprint",
+            },
             { name: "disk", type: "Integer", label: "Disk" },
             { name: "maxdisk", type: "Integer", label: "Maximum Disk" },
             { name: "mem", type: "Integer", label: "Memory" },
@@ -70,9 +83,27 @@ module.exports = (modcfg) => ({
             { name: "maxcpu", type: "Integer", label: "Maximum CPU" },
             { name: "uptime", type: "Integer", label: "Uptime" },
           ];
-
+        case "QEMU":
+          return [
+            { name: "vmid", type: "Integer", label: "VMID", primary_key: true },
+            { name: "node", type: "String", label: "Node" },
+            { name: "name", type: "String", label: "Name" },
+            { name: "mem", type: "Integer", label: "Memory" },
+            { name: "maxmem", type: "Integer", label: "Maximum Memory" },
+            { name: "freemem", type: "Integer", label: "Free Memory" },
+            { name: "cpu", type: "Float", label: "CPU" },
+            { name: "cpus", type: "Integer", label: "CPUs" },
+            { name: "uptime", type: "Integer", label: "Uptime" },
+            { name: "status", type: "String", label: "Status" },
+            { name: "qmpstatus", type: "String", label: "QMP Status" },
+            { name: "netin", type: "Integer", label: "Net In" },
+            { name: "netout", type: "Integer", label: "Net Out" },
+            { name: "diskread", type: "Integer", label: "Disk read" },
+          ];
         default:
-          return []
+          return [
+            { name: "id", type: "String", label: "ID", primary_key: true },
+          ];
       }
     },
     get_table: (cfgTable) => {
