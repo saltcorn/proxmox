@@ -54,7 +54,8 @@ module.exports = (modcfg) => ({
         const qemus = await theNode.qemu.$get({ full: true });
         for (const qemu of qemus) {
           if (qemu.vmid === row.vmid) {
-            const result = await qemu["$" + method](props);
+            //const result = await theNode.qemu.$(qemu.vmid)["$" + method](props);
+            const result = await theNode.qemu.$(qemu.vmid).status.suspend.$post()
             console.log(result);
 
             break;
