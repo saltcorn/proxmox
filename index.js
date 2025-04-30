@@ -29,7 +29,7 @@ const configuration_workflow = () =>
           return new Form({
             fields: [
               {
-                name: "url",
+                name: "host",
                 label: "Cluster URL",
                 type: "String",
               },
@@ -56,7 +56,6 @@ module.exports = {
   configuration_workflow,
   table_providers: require("./table-provider.js"),
   actions: (cfg) => ({
-    caldav_sync: require("./sync-action")(cfg),
-    caldav_edit: require("./add-action")(cfg),
+    //caldav_edit: require("./add-action")(cfg),
   }),
 };
