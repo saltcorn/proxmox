@@ -31,30 +31,53 @@ const configuration_workflow = (cfg) => (req) =>
     ],
   });
 
-const runQuery = async (cfg, where, opts) => {
+let cache = {};
+let cacheTime = null;
+
+const cacheIsFresh = () => {
+  if (!cacheTime) return false;
+  const now = new Date();
+
+  // 1 s TTL
+  return now.getTime() - cacheTime < 1000;
+};
+const fillCache = async (cfg) => {
+  if (cacheIsFresh()) return;
   const proxmox = proxmoxApi({
     host: cfg.host,
     password: cfg.password,
     username: cfg.username,
   });
+  cache.nodes = await proxmox.nodes.$get();
+
+  const all_qemus = [];
+
+  for (const node of cache.nodes) {
+    const theNode = proxmox.nodes.$(node.node);
+    // list Qemu VMS
+    const qemus = await theNode.qemu.$get({ full: true });
+    all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
+  }
+  cache.qemus = all_qemus;
+};
+const getNodes = async (cfg) => {
+  await fillCache(cfg);
+  return cache.nodes;
+};
+
+const getQEMUs = async (cfg) => {
+  await fillCache(cfg);
+  return cache.qemus;
+};
+
+const runQuery = async (cfg, where, opts) => {
   // list nodes
   switch (cfg.entity_type) {
     case "Node": {
-      const nodes = await proxmox.nodes.$get();
-      return nodes;
+      return await getNodes();
     }
     case "QEMU": {
-      const all_qemus = [];
-      const nodes = await proxmox.nodes.$get();
-      for (const node of nodes) {
-        const theNode = proxmox.nodes.$(node.node);
-        // list Qemu VMS
-        const qemus = await theNode.qemu.$get({ full: true });
-        all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
-      }
-      //console.log(all_qemus[0]);
-      
-      return all_qemus;
+      return await getQEMUs();
     }
     default:
       return [];
