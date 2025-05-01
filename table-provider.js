@@ -32,56 +32,53 @@ const configuration_workflow = (cfg) => (req) =>
   });
 
 let cache = {};
-let cacheTime = null;
+let cacheTime = {};
 
-const cacheIsFresh = () => {
-  if (!cacheTime) return false;
+const cacheIsFresh = (what) => {
+  if (!cacheTime[what]) return false;
   const now = new Date();
 
-  // 1 s TTL
-  return now.getTime() - cacheTime < 1000;
+  // 2s TTL
+  return now.getTime() - cacheTime[what] < 2000;
 };
-const fillCache = async (cfg) => {
-  if (cacheIsFresh()) return;
+const fillCache = async (cfg, what) => {
+  if (cacheIsFresh(what)) return;
+  
   const proxmox = proxmoxApi({
     host: cfg.host,
     password: cfg.password,
     username: cfg.username,
   });
-  cache.nodes = await proxmox.nodes.$get();
+  switch (what) {
+    case "Node":
+      cache.Node = await proxmox.nodes.$get();
+      break;
+    case "QEMU":
+      await fillCache(cfg, "Node");
 
-  const all_qemus = [];
+      const all_qemus = [];
 
-  for (const node of cache.nodes) {
-    const theNode = proxmox.nodes.$(node.node);
-    // list Qemu VMS
-    const qemus = await theNode.qemu.$get({ full: true });
-    all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
+      for (const node of cache.Node) {
+        const theNode = proxmox.nodes.$(node.node);
+        // list Qemu VMS
+        const qemus = await theNode.qemu.$get({ full: true });
+        all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
+      }
+      cache.QEMU = all_qemus;
+      break;
+    default:
+      break;
   }
-  cache.qemus = all_qemus;
-};
-const getNodes = async (cfg) => {
-  await fillCache(cfg);
-  return cache.nodes;
+  cacheTime[what] = new Date().getTime();
 };
 
-const getQEMUs = async (cfg) => {
-  await fillCache(cfg);
-  return cache.qemus;
+const getEntities = async (cfg, what) => {
+  await fillCache(cfg, what);
+  return cache[what] || [];
 };
 
 const runQuery = async (cfg, where, opts) => {
-  // list nodes
-  switch (cfg.entity_type) {
-    case "Node": {
-      return await getNodes();
-    }
-    case "QEMU": {
-      return await getQEMUs();
-    }
-    default:
-      return [];
-  }
+  return await getEntities(cfg, cfg.entity_type);
 };
 
 module.exports = (modcfg) => ({
