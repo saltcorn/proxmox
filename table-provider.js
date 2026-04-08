@@ -122,6 +122,7 @@ module.exports = (modcfg) => ({
             { name: "netin", type: "Integer", label: "Net In" },
             { name: "netout", type: "Integer", label: "Net Out" },
             { name: "diskread", type: "Integer", label: "Disk read" },
+            { name: "maxdisk", type: "Integer", label: "Maximum disk" },
           ];
         default:
           return [
