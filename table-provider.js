@@ -22,7 +22,7 @@ const configuration_workflow = (cfg) => (req) =>
                 name: "entity_type",
                 label: "Entity type",
                 required: true,
-                attributes: { options: ["Node", "QEMU"] },
+                attributes: { options: ["Node", "QEMU", "Snapshot"] },
               },
             ],
           });
@@ -65,6 +65,30 @@ const fillCache = async (cfg, what) => {
         all_qemus.push(...qemus.map((q) => ({ node: node.id, ...q })));
       }
       cache.QEMU = all_qemus;
+      break;
+    case "Snapshot":
+      await fillCache(cfg, "Node");
+
+      const all_snapshots = [];
+
+      for (const node of cache.Node) {
+        const theNode = proxmox.nodes.$(node.node);
+        const qemus = await theNode.qemu.$get();
+        for (const qemu of qemus) {
+          const snapshots = await theNode.qemu.$(qemu.vmid).snapshot.$get();
+          all_snapshots.push(
+            ...snapshots
+              .filter((s) => s.name !== "current")
+              .map((s) => ({
+                node: node.node,
+                vmid: qemu.vmid,
+                vmname: qemu.name,
+                ...s,
+              }))
+          );
+        }
+      }
+      cache.Snapshot = all_snapshots;
       break;
     default:
       break;
@@ -123,6 +147,17 @@ module.exports = (modcfg) => ({
             { name: "netout", type: "Integer", label: "Net Out" },
             { name: "diskread", type: "Integer", label: "Disk read" },
             { name: "maxdisk", type: "Integer", label: "Maximum disk" },
+          ];
+        case "Snapshot":
+          return [
+            { name: "name", type: "String", label: "Name", primary_key: true },
+            { name: "vmid", type: "Integer", label: "VMID" },
+            { name: "vmname", type: "String", label: "VM Name" },
+            { name: "node", type: "String", label: "Node" },
+            { name: "description", type: "String", label: "Description" },
+            { name: "parent", type: "String", label: "Parent" },
+            { name: "snaptime", type: "Integer", label: "Snapshot Time" },
+            { name: "vmstate", type: "Bool", label: "Includes RAM" },
           ];
         default:
           return [
