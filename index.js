@@ -38,5 +38,7 @@ module.exports = {
   table_providers: require("./table-provider.js"),
   actions: (cfg) => ({
     proxmox_modify: require("./action")(cfg),
+    proxmox_snapshot: require("./action-snapshot")(cfg),
+    proxmox_delete_snapshot: require("./action-delete-snapshot")(cfg),
   }),
 };
