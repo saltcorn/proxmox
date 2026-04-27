@@ -1,3 +1,4 @@
+const { interpolate } = require("@saltcorn/data/utils");
 const proxmoxApi = require("proxmox-api").default;
 
 module.exports = (modcfg) => ({
@@ -9,6 +10,9 @@ module.exports = (modcfg) => ({
         label: "Snapshot name",
         type: "String",
         required: true,
+         sublabel:
+            "Use interpolations {{ }} to access variables in the context",
+          
       },
       {
         name: "description",
@@ -43,7 +47,8 @@ module.exports = (modcfg) => ({
         const qemus = await theNode.qemu.$get();
         for (const qemu of qemus) {
           if (qemu.vmid === row.vmid) {
-            const params = { snapname };
+            const use_snapname = interpolate(snapname, row, user);
+            const params = { snapname: use_snapname };
             if (description) params.description = description;
             if (vmstate) params.vmstate = true;
             const result = await theNode.qemu
