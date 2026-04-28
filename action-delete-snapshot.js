@@ -26,6 +26,5 @@ module.exports = (modcfg) => ({
       .qemu.$(row.vmid)
       .snapshot.$(row.name)
       .$delete(params);
-    console.log(result);
   },
 });
